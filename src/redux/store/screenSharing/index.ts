@@ -3,13 +3,13 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 interface ScreenShareState {
   isSharing: boolean;
   stream: MediaStream | null;
-  error: string | null;
+  error?: string;
 }
 
 const initialState: ScreenShareState = {
   isSharing: false,
   stream: null,
-  error: null,
+  error: undefined,
 };
 
 const screenShareSlice = createSlice({
@@ -17,7 +17,7 @@ const screenShareSlice = createSlice({
   initialState,
   reducers: {
     startShareRequest(state) {
-      state.error = null;
+      state.error = undefined;
     },
     startShareSuccess(state, action: PayloadAction<MediaStream>) {
       state.isSharing = true;
@@ -29,10 +29,11 @@ const screenShareSlice = createSlice({
     },
     stopShare(state) {
       state.isSharing = false;
+      state.stream?.getTracks().forEach((track) => track.stop());
       state.stream = null;
     },
     resetError(state) {
-      state.error = null;
+      state.error = undefined;
     },
   },
 });

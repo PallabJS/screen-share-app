@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Pencil, Highlighter, Eraser, Trash2 } from "lucide-react";
 
-import { useAppDispatch, useAppSelector } from "@/redux";
-import { canvasAction, Tool } from "@/redux/store/canvas";
+import { useAppSelector } from "@/redux";
+import { CanvasTool } from "@/redux/store/canvas";
+import { CanvasTools } from "./CanvasTools";
 
 type Point = { x: number; y: number };
 
 type Stroke = {
-  tool: Tool;
+  tool: CanvasTool;
   color: string;
   width: number;
   points: Point[];
@@ -20,9 +20,15 @@ export function AnnotationCanvas() {
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
 
-  const dispatch = useAppDispatch();
-
   const { enabled, tool, color } = useAppSelector((state) => state.canvas);
+
+  const clearCanvas = () => {
+    strokesRef.current = [];
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -107,7 +113,7 @@ export function AnnotationCanvas() {
       };
     };
 
-    const getStrokeWidth = (tool: Tool) => {
+    const getStrokeWidth = (tool: CanvasTool) => {
       switch (tool) {
         case "pen":
           return 3;
@@ -166,76 +172,10 @@ export function AnnotationCanvas() {
     };
   }, [enabled, tool, color]);
 
-  /* ---------------- Clear ---------------- */
-
-  const clearCanvas = () => {
-    strokesRef.current = [];
-    const ctx = canvasRef.current?.getContext("2d");
-    if (ctx && canvasRef.current) {
-      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    }
-  };
-
   return (
     <div className="flex w-full h-full">
       {/* Controls */}
-      <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-4 py-2 flex gap-4 items-center bg-black/40 ">
-        {/* Pen */}
-        <button
-          onClick={() => dispatch(canvasAction.setTool("pen"))}
-          className={`p-3 rounded-full transition
-            ${tool === "pen" ? "bg-white/20" : "hover:bg-white/10"}`}
-          title="Pen"
-        >
-          <Pencil size={20} />
-        </button>
-
-        {/* Highlighter */}
-        <button
-          onClick={() => dispatch(canvasAction.setTool("highlighter"))}
-          className={`p-3 rounded-full transition
-            ${tool === "highlighter" ? "bg-white/20" : "hover:bg-white/10"}`}
-          title="Highlighter"
-        >
-          <Highlighter size={20} />
-        </button>
-
-        {/* Eraser */}
-        <button
-          onClick={() => dispatch(canvasAction.setTool("eraser"))}
-          className={`p-3 rounded-full transition
-            ${tool === "eraser" ? "bg-white/20" : "hover:bg-white/10"}`}
-          title="Eraser"
-        >
-          <Eraser size={20} />
-        </button>
-
-        {/* Color Picker */}
-        <label
-          className="relative w-8 h-8 rounded-full cursor-pointer overflow-hidden"
-          title="Stroke color"
-        >
-          <span
-            className="absolute inset-0 rounded-full"
-            style={{ backgroundColor: color }}
-          />
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => dispatch(canvasAction.setColor(e.target.value))}
-            className="absolute inset-0 opacity-0 cursor-pointer"
-          />
-        </label>
-
-        {/* Clear */}
-        <button
-          onClick={clearCanvas}
-          className="p-3 rounded-full hover:bg-red-500/20 transition"
-          title="Clear annotations"
-        >
-          <Trash2 size={22} className="text-red-400" />
-        </button>
-      </div>
+      <CanvasTools tool={tool} color={color} clearCanvas={clearCanvas} />
 
       {/* Canvas */}
       <canvas

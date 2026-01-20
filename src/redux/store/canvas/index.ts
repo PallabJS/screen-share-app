@@ -1,10 +1,10 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-export type Tool = "pen" | "highlighter" | "eraser";
+export type CanvasTool = "pen" | "highlighter" | "eraser";
 
 interface CanvasState {
   enabled: boolean;
-  tool: Tool;
+  tool: CanvasTool;
   color: string;
 }
 
@@ -24,7 +24,7 @@ const canvasSlice = createSlice({
     setCanvasEnabled(state, action: PayloadAction<boolean>) {
       state.enabled = action.payload;
     },
-    setTool(state, action: PayloadAction<Tool>) {
+    setTool(state, action: PayloadAction<CanvasTool>) {
       state.tool = action.payload;
     },
     setColor(state, action: PayloadAction<string>) {

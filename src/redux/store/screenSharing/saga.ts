@@ -1,35 +1,69 @@
-import { call, put, takeLatest } from "redux-saga/effects";
+import { eventChannel, EventChannel } from "redux-saga";
+import { call, put, race, take, takeLatest } from "redux-saga/effects";
+
+import { screenShareService } from "@/services/screenShare";
+import { SCREEN_SHARE_SAGA_ACTION, screenShareSagaAction } from "./action";
 import { screenShareAction } from ".";
 
-function getDisplayMedia() {
-  if (!navigator.mediaDevices?.getDisplayMedia) {
-    throw new Error("Screen sharing not supported");
-  }
+enum ScreenShareEvents {
+  ENDED = "ENDED",
+}
 
-  return navigator.mediaDevices.getDisplayMedia({
-    video: { frameRate: { ideal: 60, max: 60 } },
-    audio: false,
+function createScreenShareChannel(
+  stream: MediaStream,
+): EventChannel<ScreenShareEvents> {
+  return eventChannel((emit) => {
+    const onEnded = () => emit(ScreenShareEvents.ENDED);
+
+    stream.getVideoTracks().forEach((track) => {
+      track.addEventListener("ended", onEnded);
+    });
+
+    return () => {
+      stream.getVideoTracks().forEach((track) => {
+        track.removeEventListener("ended", onEnded);
+      });
+    };
   });
 }
 
+/* ---------------------------------- */
+/* Worker saga */
+/* ---------------------------------- */
+
 function* startScreenShare() {
   try {
-    const stream: MediaStream = yield call(getDisplayMedia);
+    // 1️⃣ Acquire screen stream
+    const stream: MediaStream = yield call(screenShareService.getDisplayMedia);
 
-    // Browser / OS stop handling
-    stream.getVideoTracks().forEach((track) => {
-      track.onended = () => {
-        window.dispatchEvent(new CustomEvent("SCREEN_SHARE_ENDED"));
-      };
+    // 2️⃣ Create channel (browser stop listener)
+    const channel: EventChannel<ScreenShareEvents> = yield call(
+      createScreenShareChannel,
+      stream,
+    );
+
+    // 3️⃣ Save stream in Redux
+    yield put(screenShareAction.startShareSuccess(stream));
+
+    yield race({
+      browserEnded: take(channel),
+      userStopped: take(SCREEN_SHARE_SAGA_ACTION.stopShare),
     });
 
-    yield put(screenShareAction.startShareSuccess(stream));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Permission denied";
+    // 5️⃣ Cleanup
+    channel.close();
+    yield put(screenShareAction.stopShare());
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Permission denied";
     yield put(screenShareAction.startShareFailure(message));
   }
 }
 
+/* ---------------------------------- */
+/* Watcher */
+/* ---------------------------------- */
+
 export function* watchScreenShare() {
-  yield takeLatest(screenShareAction.startShareRequest.type, startScreenShare);
+  yield takeLatest(SCREEN_SHARE_SAGA_ACTION.startShare, startScreenShare);
 }

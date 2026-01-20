@@ -2,17 +2,17 @@
 
 import { useCallback } from "react";
 import { useAppDispatch } from "@/redux";
-import { screenShareAction } from "@/redux/store/screenSharing";
+import { screenShareSagaAction } from "@/redux/store/screenSharing/action";
 
 export function useScreenShare() {
   const dispatch = useAppDispatch();
 
   const startSharing = useCallback(() => {
-    dispatch(screenShareAction.startShareRequest());
+    dispatch(screenShareSagaAction.startScreenShare());
   }, [dispatch]);
 
   const stopSharing = useCallback(() => {
-    dispatch(screenShareAction.stopShare());
+    dispatch(screenShareSagaAction.stopScreenShare());
   }, [dispatch]);
 
   return {
