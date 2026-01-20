@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnotationCanvas } from "@/features/screenSharing/AnnotationCanvas";
 import { ScreenVideo } from "@/features/screenSharing/ScreenVideo";
 import { useScreenShare } from "@/hooks/useScreenShare";
 import { useAppSelector } from "@/redux";
@@ -11,7 +12,7 @@ export default function ScreenSharing() {
   );
 
   return (
-    <main className="h-screen w-screen p-6 flex flex-col gap-4">
+    <main className="h-screen w-screen flex flex-col gap-4">
       <header className="flex items-center gap-4">
         {!isSharing ? (
           <button
@@ -32,8 +33,17 @@ export default function ScreenSharing() {
         {error && <span className="text-red-500 text-sm">{error}</span>}
       </header>
 
-      <section className="flex-1 relative border rounded-lg overflow-hidden">
-        {isSharing && <ScreenVideo stream={stream} />}
+      {/* <div className="flex-1 absolute w-full h-screen">
+        <AnnotationCanvas />
+      </div> */}
+
+      <section className="flex-1 relative border rounded-lg overflow-hidden bg-transparent">
+        {isSharing && (
+          <>
+            <ScreenVideo stream={stream} />
+            <AnnotationCanvas />
+          </>
+        )}
         {!isSharing && (
           <div className="h-full flex items-center justify-center text-gray-500">
             No screen being shared

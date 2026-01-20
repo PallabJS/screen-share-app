@@ -14,7 +14,7 @@ export function useScreenShare() {
       streamRef.current = null;
     }
     dispatch(screenShareAction.stopShare());
-  }, []);
+  }, [dispatch]);
 
   const startSharing = useCallback(async () => {
     dispatch(screenShareAction.startShareRequest());
@@ -31,9 +31,11 @@ export function useScreenShare() {
         audio: false,
       });
 
-      // Handle browser "Stop sharing" button
-      stream.getVideoTracks()[0].addEventListener("ended", () => {
-        stopSharing();
+      // ✅ Handle browser / OS stop sharing
+      stream.getVideoTracks().forEach((track) => {
+        track.onended = () => {
+          stopSharing();
+        };
       });
 
       streamRef.current = stream;
@@ -42,7 +44,7 @@ export function useScreenShare() {
       const message = err instanceof Error ? err.message : "Permission denied";
       dispatch(screenShareAction.startShareFailure(message));
     }
-  }, []);
+  }, [dispatch, stopSharing]);
 
   return {
     startSharing,
