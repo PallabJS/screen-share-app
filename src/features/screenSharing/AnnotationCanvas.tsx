@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Pencil, Highlighter, Eraser, Trash2 } from "lucide-react";
 
-type Tool = "pen" | "highlighter" | "eraser";
+import { useAppDispatch, useAppSelector } from "@/redux";
+import { canvasAction, Tool } from "@/redux/store/canvas";
+
 type Point = { x: number; y: number };
 
 type Stroke = {
@@ -18,9 +20,9 @@ export function AnnotationCanvas() {
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
 
-  // Annotation controls (local for now)
-  const [tool, setTool] = useState<Tool>("pen");
-  const [color, setColor] = useState("#ffffff");
+  const dispatch = useAppDispatch();
+
+  const { enabled, tool, color } = useAppSelector((state) => state.canvas);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -32,8 +34,10 @@ export function AnnotationCanvas() {
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
+    /* ---------------- Redraw ---------------- */
+
     const redraw = () => {
-      // Clear full bitmap safely
+      // Clear full bitmap safely (keeps transparency)
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -70,6 +74,8 @@ export function AnnotationCanvas() {
       ctx.globalCompositeOperation = "source-over";
     };
 
+    /* ---------------- Resize ---------------- */
+
     const resizeCanvas = () => {
       const rect = parent.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
@@ -89,6 +95,8 @@ export function AnnotationCanvas() {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
+    /* ---------------- Drawing ---------------- */
+
     let drawing = false;
 
     const getPoint = (e: MouseEvent): Point => {
@@ -99,14 +107,29 @@ export function AnnotationCanvas() {
       };
     };
 
+    const getStrokeWidth = (tool: Tool) => {
+      switch (tool) {
+        case "pen":
+          return 3;
+        case "highlighter":
+          return 10;
+        case "eraser":
+          return 24;
+        default:
+          return 3;
+      }
+    };
+
     const onMouseDown = (e: MouseEvent) => {
+      if (!enabled) return;
       if (e.button !== 0) return;
+
       drawing = true;
 
       const stroke: Stroke = {
         tool,
         color,
-        width: tool === "highlighter" || tool === "eraser" ? 10 : 3,
+        width: getStrokeWidth(tool),
         points: [getPoint(e)],
       };
 
@@ -141,7 +164,9 @@ export function AnnotationCanvas() {
       window.removeEventListener("mouseup", endDrawing);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [tool, color]);
+  }, [enabled, tool, color]);
+
+  /* ---------------- Clear ---------------- */
 
   const clearCanvas = () => {
     strokesRef.current = [];
@@ -154,12 +179,12 @@ export function AnnotationCanvas() {
   return (
     <div className="flex w-full h-full">
       {/* Controls */}
-      <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-4 py-2 flex gap-4 items-center">
+      <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-4 py-2 flex gap-4 items-center bg-black/40 ">
         {/* Pen */}
         <button
-          onClick={() => setTool("pen")}
+          onClick={() => dispatch(canvasAction.setTool("pen"))}
           className={`p-3 rounded-full transition
-      ${tool === "pen" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+            ${tool === "pen" ? "bg-white/20" : "hover:bg-white/10"}`}
           title="Pen"
         >
           <Pencil size={20} />
@@ -167,9 +192,9 @@ export function AnnotationCanvas() {
 
         {/* Highlighter */}
         <button
-          onClick={() => setTool("highlighter")}
+          onClick={() => dispatch(canvasAction.setTool("highlighter"))}
           className={`p-3 rounded-full transition
-      ${tool === "highlighter" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+            ${tool === "highlighter" ? "bg-white/20" : "hover:bg-white/10"}`}
           title="Highlighter"
         >
           <Highlighter size={20} />
@@ -177,9 +202,9 @@ export function AnnotationCanvas() {
 
         {/* Eraser */}
         <button
-          onClick={() => setTool("eraser")}
+          onClick={() => dispatch(canvasAction.setTool("eraser"))}
           className={`p-3 rounded-full transition
-      ${tool === "eraser" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+            ${tool === "eraser" ? "bg-white/20" : "hover:bg-white/10"}`}
           title="Eraser"
         >
           <Eraser size={20} />
@@ -190,17 +215,14 @@ export function AnnotationCanvas() {
           className="relative w-8 h-8 rounded-full cursor-pointer overflow-hidden"
           title="Stroke color"
         >
-          {/* Visible circle */}
           <span
             className="absolute inset-0 rounded-full"
             style={{ backgroundColor: color }}
           />
-
-          {/* Hidden native input */}
           <input
             type="color"
             value={color}
-            onChange={(e) => setColor(e.target.value)}
+            onChange={(e) => dispatch(canvasAction.setColor(e.target.value))}
             className="absolute inset-0 opacity-0 cursor-pointer"
           />
         </label>
@@ -208,17 +230,19 @@ export function AnnotationCanvas() {
         {/* Clear */}
         <button
           onClick={clearCanvas}
-          className="p-3 rounded-full hover:bg-red-500/10 transition"
+          className="p-3 rounded-full hover:bg-red-500/20 transition"
           title="Clear annotations"
         >
-          <Trash2 size={22} className="text-red-400/50" />
+          <Trash2 size={22} className="text-red-400" />
         </button>
       </div>
 
       {/* Canvas */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
+        className={`absolute inset-0 w-full h-full ${
+          enabled ? "pointer-events-auto" : "pointer-events-none"
+        }`}
         style={{
           background: "transparent",
           touchAction: "none",
