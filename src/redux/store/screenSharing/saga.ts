@@ -2,8 +2,9 @@ import { eventChannel, EventChannel } from "redux-saga";
 import { call, put, race, take, takeLatest } from "redux-saga/effects";
 
 import { screenShareService } from "@/services/screenShare";
-import { SCREEN_SHARE_SAGA_ACTION, screenShareSagaAction } from "./action";
+import { SCREEN_SHARE_SAGA_ACTION } from "./action";
 import { screenShareAction } from ".";
+import { canvasAction } from "../canvas";
 
 enum ScreenShareEvents {
   ENDED = "ENDED",
@@ -41,6 +42,9 @@ function* startScreenShare() {
       createScreenShareChannel,
       stream,
     );
+
+    // Set default tool to pen
+    yield put(canvasAction.setTool("pen"));
 
     // 3️⃣ Save stream in Redux
     yield put(screenShareAction.startShareSuccess(stream));

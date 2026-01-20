@@ -15,6 +15,19 @@ type Stroke = {
   points: Point[];
 };
 
+const getCursor = (tool: CanvasTool) => {
+  switch (tool) {
+    case "pen":
+      return "url('/cursors/pencil.png') 0 32, pointer";
+    case "highlighter":
+      return "url('/cursors/highlighter.png') 0 32, pointer";
+    case "eraser":
+      return "url('/cursors/eraser.png') 0 32, pointer";
+    default:
+      return "default";
+  }
+};
+
 export function AnnotationCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const strokesRef = useRef<Stroke[]>([]);
@@ -61,7 +74,7 @@ export function AnnotationCanvas() {
         ctx.lineWidth = stroke.width;
         ctx.strokeStyle = stroke.color;
 
-        ctx.globalAlpha = stroke.tool === "highlighter" ? 0.3 : 1;
+        ctx.globalAlpha = stroke.tool === "highlighter" ? 0.2 : 1;
 
         ctx.globalCompositeOperation =
           stroke.tool === "eraser" ? "destination-out" : "source-over";
@@ -116,13 +129,13 @@ export function AnnotationCanvas() {
     const getStrokeWidth = (tool: CanvasTool) => {
       switch (tool) {
         case "pen":
-          return 3;
+          return 2;
         case "highlighter":
-          return 10;
+          return 20;
         case "eraser":
-          return 24;
+          return 30;
         default:
-          return 3;
+          return 2;
       }
     };
 
@@ -186,6 +199,7 @@ export function AnnotationCanvas() {
         style={{
           background: "transparent",
           touchAction: "none",
+          cursor: getCursor(tool),
         }}
       />
     </div>
