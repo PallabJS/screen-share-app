@@ -33,11 +33,11 @@ export default function ScreenSharing() {
         {error && <span className="text-red-500 text-sm">{error}</span>}
       </header>
 
-      {/* <div className="flex-1 absolute w-full h-screen">
+      <div className="flex-1 absolute w-full h-screen">
         <AnnotationCanvas />
-      </div> */}
+      </div>
 
-      <section className="flex-1 relative border rounded-lg overflow-hidden bg-transparent">
+      {/* <section className="flex-1 relative border rounded-lg overflow-hidden bg-transparent">
         {isSharing && (
           <>
             <ScreenVideo stream={stream} />
@@ -49,7 +49,7 @@ export default function ScreenSharing() {
             No screen being shared
           </div>
         )}
-      </section>
+      </section> */}
     </main>
   );
 }

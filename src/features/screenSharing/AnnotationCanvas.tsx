@@ -1,14 +1,26 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Pencil, Highlighter, Eraser, Trash2 } from "lucide-react";
 
+type Tool = "pen" | "highlighter" | "eraser";
 type Point = { x: number; y: number };
-type Stroke = { points: Point[] };
+
+type Stroke = {
+  tool: Tool;
+  color: string;
+  width: number;
+  points: Point[];
+};
 
 export function AnnotationCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
+
+  // Annotation controls (local for now)
+  const [tool, setTool] = useState<Tool>("pen");
+  const [color, setColor] = useState("#ffffff");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -17,13 +29,50 @@ export function AnnotationCanvas() {
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    // ✅ FORCE ALPHA ENABLED CONTEXT
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
+    const redraw = () => {
+      // Clear full bitmap safely
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
+
+      strokesRef.current.forEach((stroke) => {
+        if (stroke.points.length < 2) return;
+
+        ctx.beginPath();
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.lineWidth = stroke.width;
+        ctx.strokeStyle = stroke.color;
+
+        ctx.globalAlpha = stroke.tool === "highlighter" ? 0.3 : 1;
+
+        ctx.globalCompositeOperation =
+          stroke.tool === "eraser" ? "destination-out" : "source-over";
+
+        stroke.points.forEach((p, i) => {
+          const x = p.x * cssWidth;
+          const y = p.y * cssHeight;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+
+        ctx.stroke();
+      });
+
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+    };
+
     const resizeCanvas = () => {
       const rect = parent.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      if (!rect.width || !rect.height) return;
 
       const dpr = window.devicePixelRatio || 1;
 
@@ -33,41 +82,8 @@ export function AnnotationCanvas() {
       canvas.style.width = "100%";
       canvas.style.height = "100%";
 
-      // Reset transform and apply DPR scaling
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
       redraw();
-    };
-
-    const redraw = () => {
-      // ✅ CLEAR FULL BITMAP (NOT CSS SIZE)
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
-
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 3;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      const cssWidth = canvas.clientWidth;
-      const cssHeight = canvas.clientHeight;
-
-      strokesRef.current.forEach((stroke) => {
-        if (stroke.points.length < 2) return;
-
-        ctx.beginPath();
-        stroke.points.forEach((p, i) => {
-          const x = p.x * cssWidth;
-          const y = p.y * cssHeight;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
-      });
     };
 
     resizeCanvas();
@@ -75,7 +91,7 @@ export function AnnotationCanvas() {
 
     let drawing = false;
 
-    const getNormalizedPos = (e: MouseEvent): Point => {
+    const getPoint = (e: MouseEvent): Point => {
       const rect = canvas.getBoundingClientRect();
       return {
         x: (e.clientX - rect.left) / rect.width,
@@ -87,14 +103,20 @@ export function AnnotationCanvas() {
       if (e.button !== 0) return;
       drawing = true;
 
-      const stroke: Stroke = { points: [getNormalizedPos(e)] };
+      const stroke: Stroke = {
+        tool,
+        color,
+        width: tool === "highlighter" || tool === "eraser" ? 10 : 3,
+        points: [getPoint(e)],
+      };
+
       currentStrokeRef.current = stroke;
       strokesRef.current.push(stroke);
     };
 
     const onMouseMove = (e: MouseEvent) => {
       if (!drawing || !currentStrokeRef.current) return;
-      currentStrokeRef.current.points.push(getNormalizedPos(e));
+      currentStrokeRef.current.points.push(getPoint(e));
       redraw();
     };
 
@@ -119,17 +141,89 @@ export function AnnotationCanvas() {
       window.removeEventListener("mouseup", endDrawing);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, []);
+  }, [tool, color]);
+
+  const clearCanvas = () => {
+    strokesRef.current = [];
+    const ctx = canvasRef.current?.getContext("2d");
+    if (ctx && canvasRef.current) {
+      ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  };
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="w-full h-full absolute inset-0"
-      style={{
-        background: "transparent",
-        pointerEvents: "auto",
-        touchAction: "none",
-      }}
-    />
+    <div className="flex w-full h-full">
+      {/* Controls */}
+      <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-4 py-2 flex gap-4 items-center">
+        {/* Pen */}
+        <button
+          onClick={() => setTool("pen")}
+          className={`p-3 rounded-full transition
+      ${tool === "pen" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+          title="Pen"
+        >
+          <Pencil size={20} />
+        </button>
+
+        {/* Highlighter */}
+        <button
+          onClick={() => setTool("highlighter")}
+          className={`p-3 rounded-full transition
+      ${tool === "highlighter" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+          title="Highlighter"
+        >
+          <Highlighter size={20} />
+        </button>
+
+        {/* Eraser */}
+        <button
+          onClick={() => setTool("eraser")}
+          className={`p-3 rounded-full transition
+      ${tool === "eraser" ? "bg-gray-100/30" : "hover:bg-gray-200/20"}`}
+          title="Eraser"
+        >
+          <Eraser size={20} />
+        </button>
+
+        {/* Color Picker */}
+        <label
+          className="relative w-8 h-8 rounded-full cursor-pointer overflow-hidden"
+          title="Stroke color"
+        >
+          {/* Visible circle */}
+          <span
+            className="absolute inset-0 rounded-full"
+            style={{ backgroundColor: color }}
+          />
+
+          {/* Hidden native input */}
+          <input
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+        </label>
+
+        {/* Clear */}
+        <button
+          onClick={clearCanvas}
+          className="p-3 rounded-full hover:bg-red-500/10 transition"
+          title="Clear annotations"
+        >
+          <Trash2 size={22} className="text-red-400/50" />
+        </button>
+      </div>
+
+      {/* Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          background: "transparent",
+          touchAction: "none",
+        }}
+      />
+    </div>
   );
 }
