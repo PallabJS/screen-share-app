@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useAppSelector } from "@/redux";
 import { CanvasTool } from "@/redux/store/canvas";
@@ -33,15 +33,108 @@ export function AnnotationCanvas() {
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
 
+  const redoStackRef = useRef<Stroke[]>([]);
+
   const { annotationVisible, tool, color, strokeWidth } = useAppSelector(
     (state) => state.canvas,
   );
 
   const clearCanvas = () => {
     strokesRef.current = [];
+    redoStackRef.current = [];
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx && canvasRef.current) {
       ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    }
+  };
+
+  // CANVAS OPERATIONS
+  /* ---------------- Redraw ---------------- */
+  const redraw = useCallback(() => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    // Clear full bitmap safely (keeps transparency)
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    ctx.restore();
+
+    if (!annotationVisible) return;
+
+    const cssWidth = canvasRef.current.clientWidth;
+    const cssHeight = canvasRef.current.clientHeight;
+
+    strokesRef.current.forEach((stroke) => {
+      if (stroke.points.length < 2) return;
+
+      ctx.beginPath();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = stroke.width;
+      ctx.strokeStyle = stroke.color;
+
+      ctx.globalAlpha = stroke.tool === "highlighter" ? 0.3 : 1;
+
+      ctx.globalCompositeOperation =
+        stroke.tool === "eraser" ? "destination-out" : "source-over";
+
+      stroke.points.forEach((p, i) => {
+        const x = p.x * cssWidth;
+        const y = p.y * cssHeight;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.stroke();
+    });
+
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+  }, [annotationVisible]);
+
+  /* ---------------- Resize ---------------- */
+  const resizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!parent) return;
+
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const rect = parent.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    redraw();
+  }, [redraw]);
+
+  /* ---------------- Undo ---------------- */
+  const undo = () => {
+    if (strokesRef.current.length === 0) return;
+    const stroke = strokesRef.current.pop();
+    if (stroke) {
+      redoStackRef.current.push(stroke);
+      redraw();
+    }
+  };
+
+  /* ---------------- Redo ---------------- */
+  const redo = () => {
+    if (redoStackRef.current.length === 0) return;
+    const stroke = redoStackRef.current.pop();
+    if (stroke) {
+      strokesRef.current.push(stroke);
+      redraw();
     }
   };
 
@@ -49,69 +142,8 @@ export function AnnotationCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
     const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
-
-    /* ---------------- Redraw ---------------- */
-    const redraw = () => {
-      // Clear full bitmap safely (keeps transparency)
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
-
-      if (!annotationVisible) return;
-
-      const cssWidth = canvas.clientWidth;
-      const cssHeight = canvas.clientHeight;
-
-      strokesRef.current.forEach((stroke) => {
-        if (stroke.points.length < 2) return;
-
-        ctx.beginPath();
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.lineWidth = stroke.width;
-        ctx.strokeStyle = stroke.color;
-
-        ctx.globalAlpha = stroke.tool === "highlighter" ? 0.2 : 1;
-
-        ctx.globalCompositeOperation =
-          stroke.tool === "eraser" ? "destination-out" : "source-over";
-
-        stroke.points.forEach((p, i) => {
-          const x = p.x * cssWidth;
-          const y = p.y * cssHeight;
-          if (i === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-
-        ctx.stroke();
-      });
-
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
-    };
-
-    /* ---------------- Resize ---------------- */
-    const resizeCanvas = () => {
-      const rect = parent.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-
-      const dpr = window.devicePixelRatio || 1;
-
-      canvas.width = Math.floor(rect.width * dpr);
-      canvas.height = Math.floor(rect.height * dpr);
-
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      redraw();
-    };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
@@ -135,6 +167,8 @@ export function AnnotationCanvas() {
       if (e.button !== 0) return;
 
       drawing = true;
+
+      redoStackRef.current = [];
 
       const stroke: Stroke = {
         tool,
@@ -174,12 +208,12 @@ export function AnnotationCanvas() {
       window.removeEventListener("mouseup", endDrawing);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [annotationVisible, tool, color, strokeWidth]);
+  }, [annotationVisible, tool, color, strokeWidth, resizeCanvas, redraw]);
 
   return (
     <div className="flex w-full h-full">
       {/* Controls */}
-      <CanvasTools clearCanvas={clearCanvas} />
+      <CanvasTools onUndo={undo} onRedo={redo} clearCanvas={clearCanvas} />
 
       {/* Canvas */}
       <canvas
