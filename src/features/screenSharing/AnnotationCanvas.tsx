@@ -28,7 +28,13 @@ const getCursor = (tool: CanvasTool) => {
   }
 };
 
-export function AnnotationCanvas() {
+type AnnotationCanvasProps = {
+  videoElementId?: string;
+};
+
+export function AnnotationCanvas(props: AnnotationCanvasProps) {
+  const { videoElementId } = props;
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
@@ -138,6 +144,58 @@ export function AnnotationCanvas() {
     }
   };
 
+  const exportSnapshot = async () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const parent = canvas.parentElement;
+    if (!parent) return;
+
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
+    // Offscreen canvas
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = width;
+    exportCanvas.height = height;
+
+    const ctx = exportCanvas.getContext("2d");
+    if (!ctx) return;
+
+    // Draw the video frame
+    if (videoElementId) {
+      // Find the video element (screen share)
+      const video = document.getElementById(
+        videoElementId,
+      ) as HTMLVideoElement | null;
+
+      // 1️⃣ Draw video frame (if exists)
+      if (video && video.readyState >= 2) {
+        ctx.drawImage(video, 0, 0, width, height);
+      } else {
+        // Optional: white background fallback
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+      }
+    }
+
+    // 2️⃣ Draw annotation canvas on top
+    ctx.drawImage(canvas, 0, 0, width, height);
+
+    // 3️⃣ Export
+    exportCanvas.toBlob((blob) => {
+      if (!blob) return;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `session-${Date.now()}.png`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    });
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -213,7 +271,12 @@ export function AnnotationCanvas() {
   return (
     <div className="flex w-full h-full">
       {/* Controls */}
-      <CanvasTools onUndo={undo} onRedo={redo} clearCanvas={clearCanvas} />
+      <CanvasTools
+        onUndo={undo}
+        onRedo={redo}
+        clearCanvas={clearCanvas}
+        onExport={exportSnapshot}
+      />
 
       {/* Canvas */}
       <canvas

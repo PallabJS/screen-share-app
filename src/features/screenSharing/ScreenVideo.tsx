@@ -3,10 +3,11 @@
 import { useEffect, useRef } from "react";
 
 interface Props {
+  elementId?: string;
   stream: MediaStream | null;
 }
 
-export function ScreenVideo({ stream }: Props) {
+export function ScreenVideo({ elementId, stream }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export function ScreenVideo({ stream }: Props) {
 
   return (
     <video
+      id={elementId}
       ref={videoRef}
       autoPlay
       muted

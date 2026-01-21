@@ -13,8 +13,8 @@ export default function ScreenSharing() {
     <main className="h-screen w-screen flex flex-col gap-4">
       {isSharing && (
         <section className="flex-1 relative rounded-lg overflow-hidden bg-transparent">
-          <ScreenVideo stream={stream} />
-          <AnnotationCanvas />
+          <ScreenVideo elementId="video_screen_share" stream={stream} />
+          <AnnotationCanvas videoElementId="video_screen_shares" />
         </section>
       )}
 

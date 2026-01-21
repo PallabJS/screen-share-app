@@ -10,6 +10,7 @@ import {
   LineSquiggle,
   Undo2Icon,
   Redo2Icon,
+  Download,
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/redux";
@@ -21,10 +22,11 @@ type CanvasToolsProps = {
   clearCanvas: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onExport: () => void;
 };
 
 export const CanvasTools = (props: CanvasToolsProps) => {
-  const { clearCanvas, onUndo, onRedo } = props;
+  const { clearCanvas, onUndo, onRedo, onExport } = props;
   const dispatch = useAppDispatch();
   const { stopSharing } = useScreenShare();
   const { annotationVisible, strokeWidth, tool, color } = useAppSelector(
@@ -177,6 +179,15 @@ export const CanvasTools = (props: CanvasToolsProps) => {
           {annotationVisible ? <Eye size={16} /> : <EyeOff size={16} />}
         </button>
       </div>
+
+      {/* DOWNLOAD as Image */}
+      <button
+        title="Export snapshot"
+        onClick={onExport}
+        className="p-1.5 rounded-full hover:bg-white/10 transition"
+      >
+        <Download size={18} />
+      </button>
 
       <div className="h-8 w-px bg-zinc-500" />
 
