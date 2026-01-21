@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Pencil,
   Highlighter,
@@ -12,7 +13,6 @@ import {
 import { useAppDispatch, useAppSelector } from "@/redux";
 import { canvasAction } from "@/redux/store/canvas";
 import { useScreenShare } from "@/hooks/useScreenShare";
-import { useRef, useState } from "react";
 import { colorUtils } from "@/utility/color";
 
 type CanvasToolsProps = {
@@ -33,8 +33,6 @@ export const CanvasTools = (props: CanvasToolsProps) => {
   const handleStopSharing = () => {
     stopSharing();
   };
-
-  console.log("COLOR: ", color);
 
   return (
     <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-3 py-2  flex gap-3 items-center bg-zinc-900/90 shadow-zinc-900 border border-zinc-700">

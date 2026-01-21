@@ -56,13 +56,14 @@ export function AnnotationCanvas() {
     if (!ctx) return;
 
     /* ---------------- Redraw ---------------- */
-
     const redraw = () => {
       // Clear full bitmap safely (keeps transparency)
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
+
+      if (!annotationVisible) return;
 
       const cssWidth = canvas.clientWidth;
       const cssHeight = canvas.clientHeight;
@@ -96,7 +97,6 @@ export function AnnotationCanvas() {
     };
 
     /* ---------------- Resize ---------------- */
-
     const resizeCanvas = () => {
       const rect = parent.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
@@ -117,7 +117,6 @@ export function AnnotationCanvas() {
     window.addEventListener("resize", resizeCanvas);
 
     /* ---------------- Drawing ---------------- */
-
     let drawing = false;
 
     const getPoint = (e: MouseEvent): Point => {
