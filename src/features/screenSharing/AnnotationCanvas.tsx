@@ -15,17 +15,10 @@ type Stroke = {
   points: Point[];
 };
 
-const getCursor = (tool: CanvasTool) => {
-  switch (tool) {
-    case "pen":
-      return "url('/cursors/pencil.png') 0 32, pointer";
-    case "highlighter":
-      return "url('/cursors/highlighter.png') 0 32, pointer";
-    case "eraser":
-      return "url('/cursors/eraser.png') 0 32, pointer";
-    default:
-      return "default";
-  }
+const toolCursor: Record<CanvasTool, string> = {
+  pen: "url('/cursors/pencil.png') 0 32, pointer",
+  highlighter: "url('/cursors/highlighter.png') 0 32, pointer",
+  eraser: "url('/cursors/eraser.png') 0 32, pointer",
 };
 
 type AnnotationCanvasProps = {
@@ -36,10 +29,11 @@ export function AnnotationCanvas(props: AnnotationCanvasProps) {
   const { videoElementId } = props;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const strokesRef = useRef<Stroke[]>([]);
-  const currentStrokeRef = useRef<Stroke | null>(null);
 
+  const strokesRef = useRef<Stroke[]>([]);
   const redoStackRef = useRef<Stroke[]>([]);
+  const currentStrokeRef = useRef<Stroke | null>(null);
+  const isDrawing = useRef(false);
 
   const { annotationVisible, tool, color, strokeWidth } = useAppSelector(
     (state) => state.canvas,
@@ -196,76 +190,63 @@ export function AnnotationCanvas(props: AnnotationCanvasProps) {
     });
   };
 
+  const endDrawing = () => {
+    isDrawing.current = false;
+    currentStrokeRef.current = null;
+  };
+
+  // ------------ DRAWING EFFECTS -------------
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
 
-    const ctx = canvas.getContext("2d", { alpha: true });
-    if (!ctx) return;
-
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-
-    /* ---------------- Drawing ---------------- */
-    let drawing = false;
-
-    const getPoint = (e: MouseEvent): Point => {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (e.clientX - rect.left) / rect.width,
-        y: (e.clientY - rect.top) / rect.height,
+      const getPoint = (e: MouseEvent): Point => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) / rect.width,
+          y: (e.clientY - rect.top) / rect.height,
+        };
       };
-    };
-
-    const getStrokeWidth = (tool: CanvasTool) => {
-      return tool === "eraser" ? strokeWidth * 2 : strokeWidth;
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-
-      drawing = true;
-
-      redoStackRef.current = [];
-
-      const stroke: Stroke = {
-        tool,
-        color,
-        width: getStrokeWidth(tool),
-        points: [getPoint(e)],
+      const getStrokeWidth = (tool: CanvasTool) => {
+        return tool === "eraser" ? strokeWidth * 2 : strokeWidth;
       };
+      const onMouseDown = (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        isDrawing.current = true;
+        redoStackRef.current = [];
+        const stroke: Stroke = {
+          tool,
+          color,
+          width: getStrokeWidth(tool),
+          points: [getPoint(e)],
+        };
+        currentStrokeRef.current = stroke;
+        strokesRef.current.push(stroke);
+      };
+      const onMouseMove = (e: MouseEvent) => {
+        if (!isDrawing.current || !currentStrokeRef.current) return;
+        currentStrokeRef.current.points.push(getPoint(e));
+        redraw();
+      };
+      const onContextMenu = (e: MouseEvent) => e.preventDefault();
 
-      currentStrokeRef.current = stroke;
-      strokesRef.current.push(stroke);
-    };
+      resizeCanvas();
+      canvas.addEventListener("mousedown", onMouseDown);
+      canvas.addEventListener("mousemove", onMouseMove);
+      canvas.addEventListener("mouseleave", endDrawing);
+      canvas.addEventListener("contextmenu", onContextMenu);
+      window.addEventListener("mouseup", endDrawing);
+      window.addEventListener("resize", resizeCanvas);
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (!drawing || !currentStrokeRef.current) return;
-      currentStrokeRef.current.points.push(getPoint(e));
-      redraw();
-    };
-
-    const endDrawing = () => {
-      drawing = false;
-      currentStrokeRef.current = null;
-    };
-
-    const onContextMenu = (e: MouseEvent) => e.preventDefault();
-
-    canvas.addEventListener("mousedown", onMouseDown);
-    canvas.addEventListener("mousemove", onMouseMove);
-    canvas.addEventListener("mouseleave", endDrawing);
-    window.addEventListener("mouseup", endDrawing);
-    canvas.addEventListener("contextmenu", onContextMenu);
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-      canvas.removeEventListener("mousedown", onMouseDown);
-      canvas.removeEventListener("mousemove", onMouseMove);
-      canvas.removeEventListener("mouseleave", endDrawing);
-      window.removeEventListener("mouseup", endDrawing);
-      canvas.removeEventListener("contextmenu", onContextMenu);
-    };
+      return () => {
+        canvas.removeEventListener("mousedown", onMouseDown);
+        canvas.removeEventListener("mousemove", onMouseMove);
+        canvas.removeEventListener("mouseleave", endDrawing);
+        canvas.removeEventListener("contextmenu", onContextMenu);
+        window.removeEventListener("mouseup", endDrawing);
+        window.removeEventListener("resize", resizeCanvas);
+      };
+    }
   }, [annotationVisible, tool, color, strokeWidth, resizeCanvas, redraw]);
 
   return (
@@ -285,7 +266,7 @@ export function AnnotationCanvas(props: AnnotationCanvasProps) {
         style={{
           background: "transparent",
           touchAction: "none",
-          cursor: getCursor(tool),
+          cursor: toolCursor[tool] || "default",
         }}
       />
     </div>

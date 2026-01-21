@@ -14,7 +14,7 @@ export default function ScreenSharing() {
       {isSharing && (
         <section className="flex-1 relative rounded-lg overflow-hidden bg-transparent">
           <ScreenVideo elementId="video_screen_share" stream={stream} />
-          <AnnotationCanvas videoElementId="video_screen_shares" />
+          <AnnotationCanvas videoElementId="video_screen_share" />
         </section>
       )}
 
