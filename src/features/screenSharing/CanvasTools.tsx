@@ -11,12 +11,18 @@ import {
   Undo2Icon,
   Redo2Icon,
   Download,
+  Square,
+  Type,
+  ArrowUpRight,
 } from "lucide-react";
 
 import { useAppDispatch, useAppSelector } from "@/redux";
-import { canvasAction } from "@/redux/store/canvas";
+import { canvasAction, CanvasTool } from "@/redux/store/canvas";
 import { useScreenShare } from "@/hooks/useScreenShare";
 import { colorUtils } from "@/utility/color";
+import { ToolButton } from "./CanvasTools/ToolButton";
+import { ToolDivider } from "./CanvasTools/ToolDivider";
+import { IconButton } from "./CanvasTools/IconButton";
 
 type CanvasToolsProps = {
   clearCanvas: () => void;
@@ -25,10 +31,15 @@ type CanvasToolsProps = {
   onExport: () => void;
 };
 
-export const CanvasTools = (props: CanvasToolsProps) => {
-  const { clearCanvas, onUndo, onRedo, onExport } = props;
+export const CanvasTools = ({
+  clearCanvas,
+  onUndo,
+  onRedo,
+  onExport,
+}: CanvasToolsProps) => {
   const dispatch = useAppDispatch();
   const { stopSharing } = useScreenShare();
+
   const { annotationVisible, strokeWidth, tool, color } = useAppSelector(
     (state) => state.canvas,
   );
@@ -36,49 +47,41 @@ export const CanvasTools = (props: CanvasToolsProps) => {
   const [strokeWidthSelectorVisible, setStrokeWidthSelectorVisible] =
     useState(false);
 
-  const handleStopSharing = () => {
-    stopSharing();
-  };
-
   return (
-    <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-3 py-2  flex gap-2 items-center bg-zinc-900/90 shadow-zinc-900 border border-zinc-700">
-      {/* DRAWING TOOLS */}
-      <div className="flex justify-center items-center gap-x-2">
+    <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-3 py-2 flex gap-2 items-center bg-zinc-900/90 border border-zinc-700">
+      {/* ----- DRAWING TOOLS ----- */}
+      <div className="flex items-center gap-x-1">
         {/* Pen */}
-        <button
+        <ToolButton
           title="Pen"
-          className={`w-8 h-8 rounded-full cursor-pointer justify-center items-center flex
-            ${tool === "pen" ? "bg-white/20" : "hover:bg-white/10"}`}
-          onClick={() => dispatch(canvasAction.setTool("pen"))}
+          active={tool === "pen"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Pen))}
         >
           <Pencil size={16} />
-        </button>
+        </ToolButton>
 
         {/* Highlighter */}
-        <button
+        <ToolButton
           title="Highlighter"
-          className={`w-8 h-8 rounded-full cursor-pointer justify-center items-center flex
-          ${tool === "highlighter" ? "bg-white/20" : "hover:bg-white/10"}`}
-          onClick={() => dispatch(canvasAction.setTool("highlighter"))}
+          active={tool === "highlighter"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Highlighter))}
         >
-          <Highlighter size={20} strokeWidth={1.5} />
-        </button>
+          <Highlighter size={18} strokeWidth={1.5} />
+        </ToolButton>
 
         {/* Eraser */}
-        <button
+        <ToolButton
           title="Eraser"
-          className={`w-8 h-8 rounded-full cursor-pointer justify-center items-center flex
-          ${tool === "eraser" ? "bg-white/20" : "hover:bg-white/10"}`}
-          onClick={() => dispatch(canvasAction.setTool("eraser"))}
+          active={tool === "eraser"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Eraser))}
         >
-          <Eraser size={20} strokeWidth={1.5} />
-        </button>
+          <Eraser size={18} strokeWidth={1.5} />
+        </ToolButton>
       </div>
 
-      {/* Color Picker */}
+      {/* ----- COLOR PICKER ----- */}
       <label
         title="Stroke color"
-        aria-description="Stroke color picker"
         className="relative w-6 h-6 overflow-hidden rounded-full border"
         style={{ borderColor: colorUtils.getContrastMonoColor(color, 0.5) }}
       >
@@ -89,39 +92,35 @@ export const CanvasTools = (props: CanvasToolsProps) => {
         <input
           type="color"
           value={color}
-          title=""
           onChange={(e) => dispatch(canvasAction.setColor(e.target.value))}
           className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
         />
       </label>
 
-      {/* Stroke Width */}
+      {/* ----- STROKE WIDTH ----- */}
       <div
-        className="relative flex items-center justify-center cursor-pointer"
+        className="relative flex items-center cursor-pointer"
         onClick={() =>
           setStrokeWidthSelectorVisible(!strokeWidthSelectorVisible)
         }
       >
-        <div
-          className={`absolute w-4 h-4 ${strokeWidthSelectorVisible ? "" : "hidden"}`}
-        >
+        {strokeWidthSelectorVisible && (
           <input
             type="range"
             min={1}
             max={30}
-            step={1}
             value={strokeWidth}
-            onChange={(e) => {
-              dispatch(canvasAction.setStrokeWidth(Number(e.target.value)));
-            }}
-            className="absolute appearance-none h-2 -top-7.5 bg-zinc-600 rounded-full cursor-pointer"
+            onChange={(e) =>
+              dispatch(canvasAction.setStrokeWidth(Number(e.target.value)))
+            }
+            className="absolute -top-7 h-2 bg-zinc-600 rounded-full"
             style={{ accentColor: color }}
           />
-        </div>
-        {/* Value indicator */}
-        <div className="min-w-8 text-zinc-300 font-normal flex items-center justify-center cursor-pointer">
+        )}
+
+        <div className="min-w-8 flex justify-center items-center">
           <div
-            className="absolute -z-10 rounded-full self-center"
+            className="absolute rounded-full"
             style={{
               width: strokeWidth,
               height: strokeWidth,
@@ -136,67 +135,73 @@ export const CanvasTools = (props: CanvasToolsProps) => {
         </div>
       </div>
 
-      <div className="h-8 w-px bg-zinc-500" />
+      <ToolDivider />
 
-      <div className="flex items-center justify-center gap-x-1">
-        {/* Clear / Delete All */}
-        <button
-          title="Clear annotations"
-          className="p-1.5 rounded-full hover:bg-red-500/20 transition cursor-pointer"
-          onClick={clearCanvas}
+      {/* ----- SHAPE TOOLS ----- */}
+      <div className="flex items-center gap-x-1">
+        <ToolButton
+          title="Rectangle"
+          active={tool === "rectangle"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Rectangle))}
         >
-          <Trash2
-            size={20}
-            className="text-red-400 cursor-pointer"
-            strokeWidth={1}
-          />
-        </button>
+          <Square size={16} />
+        </ToolButton>
 
-        {/* UNDO Annotations */}
-        <button
-          title={annotationVisible ? "Disable annotation" : "Enable annotation"}
-          onClick={onUndo}
-          className={`w-8 h-8 rounded-full flex items-center justify-center hover:bg-zinc-600/50 cursor-pointer`}
+        <ToolButton
+          title="Arrow"
+          active={tool === "arrow"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Arrow))}
         >
-          <Undo2Icon size={15} />
-        </button>
+          <ArrowUpRight size={16} />
+        </ToolButton>
 
-        {/* REDO Annotations */}
-        <button
-          title={annotationVisible ? "Disable annotation" : "Enable annotation"}
-          onClick={onRedo}
-          className={`w-8 h-8 rounded-full flex items-center justify-center hover:bg-zinc-600/50 cursor-pointer`}
+        <ToolButton
+          title="Text"
+          active={tool === "text"}
+          onClick={() => dispatch(canvasAction.setTool(CanvasTool.Text))}
         >
-          <Redo2Icon size={15} />
-        </button>
-
-        {/* SHOW/HIDE Annotations */}
-        <button
-          title={annotationVisible ? "Disable annotation" : "Enable annotation"}
-          onClick={() => dispatch(canvasAction.toggleAnnotationVisibility())}
-          className={`w-8 h-8 rounded-full flex items-center justify-center hover:bg-zinc-600/50 cursor-pointer ${annotationVisible ? "" : "bg-zinc-700/50"}`}
-        >
-          {annotationVisible ? <Eye size={16} /> : <EyeOff size={16} />}
-        </button>
+          <Type size={16} />
+        </ToolButton>
       </div>
 
-      {/* DOWNLOAD as Image */}
-      <button
-        title="Export snapshot"
-        onClick={onExport}
-        className="p-1.5 rounded-full hover:bg-white/10 transition"
+      <ToolDivider />
+
+      {/* ----- UNDO / REDO ----- */}
+      <IconButton title="Undo" onClick={onUndo}>
+        <Undo2Icon size={15} />
+      </IconButton>
+
+      <IconButton title="Redo" onClick={onRedo}>
+        <Redo2Icon size={15} />
+      </IconButton>
+
+      {/* ----- SHOW / HIDE ----- */}
+      <IconButton
+        title={annotationVisible ? "Hide annotations" : "Show annotations"}
+        onClick={() => dispatch(canvasAction.toggleAnnotationVisibility())}
+        active={!annotationVisible}
       >
+        {annotationVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+      </IconButton>
+
+      {/* ----- CLEAR ----- */}
+      <IconButton title="Clear annotations" onClick={clearCanvas}>
+        <Trash2 size={18} className="text-red-400" />
+      </IconButton>
+
+      {/* ----- EXPORT ----- */}
+      <IconButton title="Export snapshot" onClick={onExport}>
         <Download size={18} />
-      </button>
+      </IconButton>
 
-      <div className="h-8 w-px bg-zinc-500" />
+      <ToolDivider />
 
-      {/* Stop Session */}
+      {/* ----- STOP SHARING ----- */}
       <button
-        onClick={handleStopSharing}
-        className="flex justify-center items-center p-1.5 rounded-full bg-linear-to-r from-red-900 to-red-600 opacity-80 hover:opacity-90 active:opacity-70 shadow-black hover:shadow-sm cursor-pointer"
+        onClick={stopSharing}
+        className="p-1.5 rounded-full bg-linear-to-r from-red-900 to-red-600 opacity-80 hover:opacity-90"
       >
-        <SquareStop fill="white" size={14} color="white" />
+        <SquareStop fill="white" size={14} />
       </button>
     </div>
   );

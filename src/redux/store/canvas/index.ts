@@ -1,6 +1,13 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-export type CanvasTool = "pen" | "highlighter" | "eraser";
+export enum CanvasTool {
+  Pen = "pen",
+  Highlighter = "highlighter",
+  Eraser = "eraser",
+  Rectangle = "rectangle",
+  Arrow = "arrow",
+  Text = "text",
+}
 
 interface CanvasState {
   annotationVisible: boolean;
@@ -11,7 +18,7 @@ interface CanvasState {
 
 const initialState: CanvasState = {
   annotationVisible: true,
-  tool: "pen",
+  tool: CanvasTool.Pen,
   color: "#ffffff",
   strokeWidth: 2,
 };
