@@ -43,8 +43,8 @@ function* startScreenShare() {
       stream,
     );
 
-    // Set default tool to pen
-    yield put(canvasAction.setTool("pen"));
+    // Set default tools state
+    yield put(canvasAction.reset());
 
     // 3️⃣ Save stream in Redux
     yield put(screenShareAction.startShareSuccess(stream));

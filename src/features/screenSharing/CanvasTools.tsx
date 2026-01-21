@@ -1,23 +1,40 @@
-import { Pencil, Highlighter, Eraser, Trash2, SquareStop } from "lucide-react";
+import {
+  Pencil,
+  Highlighter,
+  Eraser,
+  Trash2,
+  SquareStop,
+  Eye,
+  EyeOff,
+  LineSquiggle,
+} from "lucide-react";
 
-import { useAppDispatch } from "@/redux";
-import { canvasAction, CanvasTool } from "@/redux/store/canvas";
+import { useAppDispatch, useAppSelector } from "@/redux";
+import { canvasAction } from "@/redux/store/canvas";
 import { useScreenShare } from "@/hooks/useScreenShare";
+import { useRef, useState } from "react";
+import { colorUtils } from "@/utility/color";
 
 type CanvasToolsProps = {
-  tool: CanvasTool;
-  color: string;
   clearCanvas: () => void;
 };
 
 export const CanvasTools = (props: CanvasToolsProps) => {
-  const { tool, color, clearCanvas } = props;
+  const { clearCanvas } = props;
   const dispatch = useAppDispatch();
   const { stopSharing } = useScreenShare();
+  const { annotationVisible, strokeWidth, tool, color } = useAppSelector(
+    (state) => state.canvas,
+  );
+
+  const [strokeWidthSelectorVisible, setStrokeWidthSelectorVisible] =
+    useState(false);
 
   const handleStopSharing = () => {
     stopSharing();
   };
+
+  console.log("COLOR: ", color);
 
   return (
     <div className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg px-3 py-2  flex gap-3 items-center bg-zinc-900/90 shadow-zinc-900 border border-zinc-700">
@@ -55,7 +72,8 @@ export const CanvasTools = (props: CanvasToolsProps) => {
       <label
         title="Stroke color"
         aria-description="Stroke color picker"
-        className="relative w-6 h-6 overflow-hidden rounded-full border border-gray-200/50"
+        className="relative w-6 h-6 overflow-hidden rounded-full border"
+        style={{ borderColor: colorUtils.getContrastMonoColor(color, 0.5) }}
       >
         <span
           className="absolute inset-0 rounded-full"
@@ -82,6 +100,62 @@ export const CanvasTools = (props: CanvasToolsProps) => {
           strokeWidth={1}
         />
       </button>
+
+      <div className="h-8 w-px bg-zinc-500" />
+
+      {/* Stroke Width */}
+      <div
+        className="relative flex items-center justify-center cursor-pointer"
+        onClick={() =>
+          setStrokeWidthSelectorVisible(!strokeWidthSelectorVisible)
+        }
+      >
+        <div
+          className={`absolute w-4 h-4 ${strokeWidthSelectorVisible ? "" : "hidden"}`}
+        >
+          <input
+            type="range"
+            min={1}
+            max={30}
+            step={1}
+            value={strokeWidth}
+            onChange={(e) => {
+              dispatch(canvasAction.setStrokeWidth(Number(e.target.value)));
+            }}
+            className="absolute appearance-none h-2 -top-7.5 bg-zinc-600 rounded-full cursor-pointer"
+            style={{ accentColor: color }}
+          />
+        </div>
+        {/* Value indicator */}
+        <div className="min-w-8 text-zinc-300 font-normal flex items-center justify-center cursor-pointer">
+          <div
+            className="absolute -z-10 rounded-full self-center"
+            style={{
+              width: strokeWidth,
+              height: strokeWidth,
+              backgroundColor: color,
+              opacity: 0.5,
+            }}
+          />
+          <LineSquiggle
+            size={14}
+            color={colorUtils.getContrastMonoColor(color)}
+          />
+        </div>
+      </div>
+
+      <div className="h-8 w-px bg-zinc-500" />
+
+      <button
+        title={annotationVisible ? "Disable annotation" : "Enable annotation"}
+        onClick={() => dispatch(canvasAction.toggleAnnotationVisibility())}
+        className={`w-8 h-8 rounded-full flex items-center justify-center transition
+    ${annotationVisible ? "bg-blue-500/20" : "bg-zinc-700/50 hover:bg-zinc-600/50"}`}
+      >
+        {annotationVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+      </button>
+
+      <div className="h-8 w-px bg-zinc-500" />
 
       <button
         onClick={handleStopSharing}

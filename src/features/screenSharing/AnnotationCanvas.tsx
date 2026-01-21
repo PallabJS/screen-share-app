@@ -33,7 +33,9 @@ export function AnnotationCanvas() {
   const strokesRef = useRef<Stroke[]>([]);
   const currentStrokeRef = useRef<Stroke | null>(null);
 
-  const { enabled, tool, color } = useAppSelector((state) => state.canvas);
+  const { annotationVisible, tool, color, strokeWidth } = useAppSelector(
+    (state) => state.canvas,
+  );
 
   const clearCanvas = () => {
     strokesRef.current = [];
@@ -127,20 +129,10 @@ export function AnnotationCanvas() {
     };
 
     const getStrokeWidth = (tool: CanvasTool) => {
-      switch (tool) {
-        case "pen":
-          return 2;
-        case "highlighter":
-          return 20;
-        case "eraser":
-          return 30;
-        default:
-          return 2;
-      }
+      return tool === "eraser" ? strokeWidth * 2 : strokeWidth;
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (!enabled) return;
       if (e.button !== 0) return;
 
       drawing = true;
@@ -183,19 +175,17 @@ export function AnnotationCanvas() {
       window.removeEventListener("mouseup", endDrawing);
       canvas.removeEventListener("contextmenu", onContextMenu);
     };
-  }, [enabled, tool, color]);
+  }, [annotationVisible, tool, color, strokeWidth]);
 
   return (
     <div className="flex w-full h-full">
       {/* Controls */}
-      <CanvasTools tool={tool} color={color} clearCanvas={clearCanvas} />
+      <CanvasTools clearCanvas={clearCanvas} />
 
       {/* Canvas */}
       <canvas
         ref={canvasRef}
-        className={`absolute inset-0 w-full h-full ${
-          enabled ? "pointer-events-auto" : "pointer-events-none"
-        }`}
+        className={`absolute inset-0 w-full h-full pointer-events-auto`}
         style={{
           background: "transparent",
           touchAction: "none",
