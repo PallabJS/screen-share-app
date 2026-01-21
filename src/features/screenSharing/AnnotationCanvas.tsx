@@ -40,8 +40,7 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
     (state) => state.canvas,
   );
 
-  /* ---------------- Helpers ---------------- */
-
+  /* ---------------- Canvas Helpers ---------------- */
   const clearCanvas = () => {
     strokesRef.current = [];
     redoStackRef.current = [];
@@ -59,31 +58,49 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
     const h = Math.abs(a.y - b.y);
     ctx.strokeRect(x, y, w, h);
   };
+
   const drawArrow = (
     ctx: CanvasRenderingContext2D,
     from: Point,
     to: Point,
-    width: number,
+    strokeWidth: number,
   ) => {
-    const headLength = Math.max(8, width * 2);
-    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const angle = Math.atan2(dy, dx);
 
+    const headLength = Math.max(12, strokeWidth * 3);
+    const headAngle = Math.PI / 7;
+
+    // Amount to overlap shaft into head
+    const overlap = strokeWidth / 2;
+
+    // ---- Shaft ----
+    ctx.save();
+    ctx.lineCap = "butt";
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
+    ctx.lineTo(
+      to.x - (headLength - overlap) * Math.cos(angle),
+      to.y - (headLength - overlap) * Math.sin(angle),
+    );
     ctx.stroke();
+    ctx.restore();
 
+    // ---- Arrow head ----
     ctx.beginPath();
     ctx.moveTo(to.x, to.y);
     ctx.lineTo(
-      to.x - headLength * Math.cos(angle - Math.PI / 6),
-      to.y - headLength * Math.sin(angle - Math.PI / 6),
+      to.x - headLength * Math.cos(angle - headAngle),
+      to.y - headLength * Math.sin(angle - headAngle),
     );
     ctx.lineTo(
-      to.x - headLength * Math.cos(angle + Math.PI / 6),
-      to.y - headLength * Math.sin(angle + Math.PI / 6),
+      to.x - headLength * Math.cos(angle + headAngle),
+      to.y - headLength * Math.sin(angle + headAngle),
     );
     ctx.closePath();
+
+    ctx.fillStyle = ctx.strokeStyle as string;
     ctx.fill();
   };
 
@@ -232,7 +249,6 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
   };
 
   /* ---------------- Drawing Logic ---------------- */
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -250,7 +266,7 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
+      if (e.button !== 0 || !annotationVisible) return;
       redoStackRef.current = [];
 
       const start = getPoint(e);
@@ -285,7 +301,13 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!isDrawing.current || !currentStrokeRef.current) return;
+      if (
+        !isDrawing.current ||
+        !currentStrokeRef.current ||
+        !annotationVisible
+      ) {
+        return;
+      }
 
       const p = getPoint(e);
 
@@ -319,7 +341,7 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
       window.removeEventListener("mouseup", endDrawing);
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [tool, color, strokeWidth, resizeCanvas, redraw]);
+  }, [annotationVisible, tool, color, strokeWidth, resizeCanvas, redraw]);
 
   return (
     <div className="flex w-full h-full">
