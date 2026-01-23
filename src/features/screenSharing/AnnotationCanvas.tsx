@@ -369,7 +369,7 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
   }, [annotationVisible, tool, color, strokeWidth, resizeCanvas, redraw]);
 
   return (
-    <div className="flex w-full h-full">
+    <div className="flex w-full h-full absolute z-50">
       <CanvasTools
         onUndo={undo}
         onRedo={redo}
