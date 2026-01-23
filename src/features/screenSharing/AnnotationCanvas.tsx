@@ -217,35 +217,60 @@ export function AnnotationCanvas({ videoElementId }: AnnotationCanvasProps) {
   };
 
   /* ---------------- Export ---------------- */
+  /* ---------------- Export (FIXED) ---------------- */
   const exportSnapshot = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const dpr = window.devicePixelRatio || 1;
+
+    // Use the SAME logical size the canvas was drawn with
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
     const exportCanvas = document.createElement("canvas");
-    exportCanvas.width = canvas.clientWidth;
-    exportCanvas.height = canvas.clientHeight;
+    exportCanvas.width = Math.round(width * dpr);
+    exportCanvas.height = Math.round(height * dpr);
 
     const ctx = exportCanvas.getContext("2d");
     if (!ctx) return;
 
+    // Important: match annotation canvas transform exactly
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // 1️⃣ Draw video frame (no offset, no scaling mismatch)
     if (videoElementId) {
-      const video = document.getElementById(videoElementId) as HTMLVideoElement;
+      const video = document.getElementById(
+        videoElementId,
+      ) as HTMLVideoElement | null;
+
       if (video && video.readyState >= 2) {
-        ctx.drawImage(video, 0, 0, exportCanvas.width, exportCanvas.height);
+        try {
+          ctx.drawImage(video, 0, 0, width, height);
+        } catch {
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, width, height);
+        }
       }
     }
 
-    ctx.drawImage(canvas, 0, 0);
+    // 2️⃣ Draw annotation canvas at EXACT same logical size
+    ctx.drawImage(canvas, 0, 0, width, height);
 
-    exportCanvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `snapshot-${Date.now()}.png`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+    // 3️⃣ Export
+    exportCanvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `snapshot-${Date.now()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      "image/png",
+      1,
+    );
   };
 
   /* ---------------- Drawing Logic ---------------- */
